@@ -91,11 +91,7 @@ function drawPointer() {
   ctx.restore();
 }
 
-function update() {
-  const { w, h } = sizes;
-  ctx.clearRect(0, 0, w, h);
-  drawVideo();
-  drawPointer();
+function updateCursor() {
   detector.estimateHands(canvas).then((hands) => {
     hands.forEach((hand) => {
       const [, , , , thumb, , , , index] = hand.keypoints;
@@ -111,4 +107,12 @@ function update() {
       cursor.active = false;
     }
   });
+}
+
+function update() {
+  const { w, h } = sizes;
+  ctx.clearRect(0, 0, w, h);
+  drawVideo();
+  drawPointer();
+  updateCursor();
 }
