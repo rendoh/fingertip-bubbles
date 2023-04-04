@@ -95,11 +95,14 @@ function lerp(x: number, y: number, p: number): number {
   return x + (y - x) * p;
 }
 
-function updateCursor() {
+function updateCursorPosition() {
   detector.estimateHands(vCanvas).then((hands) => {
-    const rightHand = hands.find((hand) => hand.handedness === 'Right');
-    hands.forEach((hand) => {
-      const [, , , , thumb, , , , index] = hand.keypoints;
+    const rightHand = hands.find(
+      (hand) => hand.handedness === 'Right' && hand.score > 0.8,
+    );
+    cursor.inView = !!rightHand;
+    if (rightHand) {
+      const [, , , , thumb, , , , index] = rightHand.keypoints;
       const ratio60 = 0.3;
       const delta60 = 16;
       const ratio = 1 - Math.pow(1 - ratio60, clock.delta / delta60);
@@ -108,10 +111,8 @@ function updateCursor() {
       const distance = Math.sqrt(
         (thumb.x - index.x) ** 2 + (thumb.y - index.y) ** 2,
       );
-      cursor.active = distance < (cursor.active ? 70 : 20);
-    });
-    cursor.inView = !!rightHand;
-    if (!cursor.inView) {
+      cursor.active = distance < (cursor.active ? 70 : 30);
+    } else {
       cursor.active = false;
     }
   });
@@ -121,7 +122,7 @@ function updateVideoCanvas() {
   const { w, h } = sizes;
   vCtx.clearRect(0, 0, w, h);
   drawVideo();
-  updateCursor();
+  updateCursorPosition();
 }
 
 const { ctx: pCtx } = createCanvas();
@@ -131,7 +132,7 @@ function drawPointer() {
   if (!inView) return;
   pCtx.save();
   pCtx.beginPath();
-  pCtx.arc(x, y, 10, 0, Math.PI * 2);
+  pCtx.arc(x, y, 5, 0, Math.PI * 2);
   pCtx.fillStyle = active ? 'red' : 'black';
   pCtx.fill();
   pCtx.restore();
