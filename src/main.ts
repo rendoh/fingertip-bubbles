@@ -50,6 +50,7 @@ const cursor = {
   x: sizes.w / 2,
   y: sizes.h / 2,
   active: false,
+  inView: false,
 };
 
 function drawVideo() {
@@ -75,18 +76,18 @@ function drawVideo() {
       return { sx, sy, sw, sh };
     }
   })();
-  // prettier-ignore
-  ctx.drawImage(
-    video,
-    sx,
-    sy,
-    sw,
-    sh,
-    0,
-    0,
-    w,
-    h,
-  );
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
+  ctx.restore();
+}
+
+function drawPointer() {
+  const { x, y, active, inView } = cursor;
+  if (!inView) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x, y, 10, 0, Math.PI * 2);
+  ctx.fillStyle = active ? 'red' : 'black';
+  ctx.fill();
   ctx.restore();
 }
 
@@ -94,16 +95,20 @@ function update() {
   const { w, h } = sizes;
   ctx.clearRect(0, 0, w, h);
   drawVideo();
+  drawPointer();
   detector.estimateHands(canvas).then((hands) => {
-    if (hands.length === 0) cursor.active = false;
     hands.forEach((hand) => {
-      const [, , , , thumb, , , index] = hand.keypoints;
+      const [, , , , thumb, , , , index] = hand.keypoints;
       cursor.x = index.x;
       cursor.y = index.y;
       const distance = Math.sqrt(
         (thumb.x - index.x) ** 2 + (thumb.y - index.y) ** 2,
       );
-      cursor.active = distance > 100;
+      cursor.active = distance < (cursor.active ? 100 : 30);
     });
+    cursor.inView = hands.length > 0;
+    if (!cursor.inView) {
+      cursor.active = false;
+    }
   });
 }
