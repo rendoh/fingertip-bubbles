@@ -1,7 +1,34 @@
 import * as handPoseDetection from '@tensorflow-models/hand-pose-detection';
+import GUI from 'lil-gui';
 
 import { clock } from './clock';
 import { sizes } from './sizes';
+
+const gui = new GUI();
+const vars = {
+  color: '#ff0000',
+  width: 2,
+  showVideo: true,
+  backgroundColor: '#ffffff',
+  clear: clearMainCanvas,
+};
+gui.addColor(vars, 'color');
+gui.add(vars, 'width', 1, 20, 1);
+gui
+  .add(vars, 'showVideo')
+  .name('Show video')
+  .onChange((isVisible: boolean) => {
+    vCanvas.style.display = isVisible ? 'block' : 'none';
+    mCanvas.style.backgroundColor = isVisible
+      ? 'transparent'
+      : vars.backgroundColor;
+  });
+gui.addColor(vars, 'backgroundColor').onChange((color: string) => {
+  if (!vars.showVideo) {
+    mCanvas.style.backgroundColor = color;
+  }
+});
+gui.add(vars, 'clear');
 
 const model = handPoseDetection.SupportedModels.MediaPipeHands;
 const detector = await handPoseDetection.createDetector(model, {
@@ -63,6 +90,7 @@ const cursor = {
 };
 
 const { canvas: vCanvas, ctx: vCtx } = createCanvas();
+vCanvas.style.display = vars.showVideo ? 'block' : 'none';
 
 function drawVideo() {
   const { w, h } = sizes;
@@ -125,16 +153,20 @@ function updateVideoCanvas() {
   updateCursorPosition();
 }
 
-const { ctx: pCtx } = createCanvas();
+const { ctx: pCtx, canvas: pCanvas } = createCanvas();
+pCanvas.style.zIndex = '1';
 
 function drawPointer() {
   const { x, y, active, inView } = cursor;
   if (!inView) return;
   pCtx.save();
   pCtx.beginPath();
-  pCtx.arc(x, y, 5, 0, Math.PI * 2);
-  pCtx.fillStyle = active ? 'red' : 'black';
+  pCtx.arc(x, y, Math.max(vars.width / 2, 4), 0, Math.PI * 2);
+  pCtx.fillStyle = active ? vars.color : 'black';
+  pCtx.strokeStyle = active ? vars.color : 'white';
+  pCtx.lineWidth = 1;
   pCtx.fill();
+  pCtx.stroke();
   pCtx.restore();
 }
 
@@ -144,7 +176,7 @@ function updatePointerCanvas() {
   drawPointer();
 }
 
-const { ctx: mCtx } = createCanvas();
+const { ctx: mCtx, canvas: mCanvas } = createCanvas();
 let active = false;
 function updateMainCanvas() {
   if (!cursor.active) {
@@ -154,9 +186,8 @@ function updateMainCanvas() {
     }
     return;
   }
-
-  mCtx.lineWidth = 2;
-  mCtx.strokeStyle = 'red';
+  mCtx.lineWidth = vars.width;
+  mCtx.strokeStyle = vars.color;
   mCtx.lineCap = 'round';
   if (cursor.active && active === false) {
     active = true;
@@ -166,6 +197,10 @@ function updateMainCanvas() {
     mCtx.lineTo(cursor.x, cursor.y);
   }
   mCtx.stroke();
+}
+
+function clearMainCanvas() {
+  mCtx.clearRect(0, 0, sizes.w, sizes.h);
 }
 
 function update() {
