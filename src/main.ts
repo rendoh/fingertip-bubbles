@@ -1,24 +1,109 @@
-import './style.css'
-import typescriptLogo from './typescript.svg'
-import viteLogo from '/vite.svg'
-import { setupCounter } from './counter'
+import * as handPoseDetection from '@tensorflow-models/hand-pose-detection';
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-  <div>
-    <a href="https://vitejs.dev" target="_blank">
-      <img src="${viteLogo}" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://www.typescriptlang.org/" target="_blank">
-      <img src="${typescriptLogo}" class="logo vanilla" alt="TypeScript logo" />
-    </a>
-    <h1>Vite + TypeScript</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
-    </div>
-    <p class="read-the-docs">
-      Click on the Vite and TypeScript logos to learn more
-    </p>
-  </div>
-`
+import { clock } from './clock';
+import { sizes } from './sizes';
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+const model = handPoseDetection.SupportedModels.MediaPipeHands;
+const detector = await handPoseDetection.createDetector(model, {
+  runtime: 'mediapipe',
+  modelType: 'full',
+  solutionPath: '/hands',
+});
+
+const videoWidth = 1280;
+const videoHeight = 720;
+const videoAspectRatio = videoWidth / videoHeight;
+const video = document.createElement('video');
+navigator.mediaDevices
+  .getUserMedia({
+    video: {
+      width: videoWidth,
+      height: videoHeight,
+      aspectRatio: {
+        exact: videoAspectRatio,
+      },
+    },
+    audio: false,
+  })
+  .then((stream) => {
+    video.srcObject = stream;
+    video.play();
+  });
+
+const canvas = document.createElement('canvas');
+// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+const ctx = canvas.getContext('2d')!;
+document.body.appendChild(canvas);
+
+resize();
+sizes.addEventListener('resize', resize);
+clock.addEventListener('tick', update);
+
+function resize() {
+  canvas.width = sizes.w;
+  canvas.height = sizes.h;
+  canvas.style.width = `${sizes.w / sizes.r}px`;
+  canvas.style.height = `${sizes.h / sizes.r}px`;
+}
+
+const cursor = {
+  x: sizes.w / 2,
+  y: sizes.h / 2,
+  active: false,
+};
+
+function drawVideo() {
+  const { w, h } = sizes;
+  ctx.save();
+  ctx.scale(-1, 1);
+  ctx.translate(-w, 0);
+  const windowAspectRatio = w / h;
+  const { sx, sy, sw, sh } = (() => {
+    if (windowAspectRatio >= videoAspectRatio) {
+      const ratio = w / videoWidth;
+      const sx = 0;
+      const sy = (videoHeight * ratio - h) / ratio / 2;
+      const sw = videoWidth;
+      const sh = h / ratio;
+      return { sx, sy, sw, sh };
+    } else {
+      const ratio = h / videoHeight;
+      const sx = (videoWidth * ratio - w) / ratio / 2;
+      const sy = 0;
+      const sw = w / ratio;
+      const sh = videoHeight;
+      return { sx, sy, sw, sh };
+    }
+  })();
+  // prettier-ignore
+  ctx.drawImage(
+    video,
+    sx,
+    sy,
+    sw,
+    sh,
+    0,
+    0,
+    w,
+    h,
+  );
+  ctx.restore();
+}
+
+function update() {
+  const { w, h } = sizes;
+  ctx.clearRect(0, 0, w, h);
+  drawVideo();
+  detector.estimateHands(canvas).then((hands) => {
+    if (hands.length === 0) cursor.active = false;
+    hands.forEach((hand) => {
+      const [, , , , thumb, , , index] = hand.keypoints;
+      cursor.x = index.x;
+      cursor.y = index.y;
+      const distance = Math.sqrt(
+        (thumb.x - index.x) ** 2 + (thumb.y - index.y) ** 2,
+      );
+      cursor.active = distance > 100;
+    });
+  });
+}
