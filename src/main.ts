@@ -130,7 +130,7 @@ async function main() {
   function updateCursorPosition() {
     const result = handLandmarker.detect(vCanvas);
     const rightHandIndex = result.handednesses.findIndex((category) =>
-      category.find((c) => c.categoryName === 'Right' && c.score > 0.8),
+      category.find((c) => c.categoryName === 'Right'),
     );
     cursor.inView = rightHandIndex !== -1;
     if (rightHandIndex === -1) {
