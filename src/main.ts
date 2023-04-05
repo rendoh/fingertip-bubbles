@@ -1,5 +1,4 @@
-import * as mpHands from '@mediapipe/hands';
-import * as handPoseDetection from '@tensorflow-models/hand-pose-detection';
+import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import GUI from 'lil-gui';
 
 import { clock } from './clock';
@@ -32,11 +31,14 @@ async function main() {
   });
   gui.add(vars, 'clear');
 
-  const model = handPoseDetection.SupportedModels.MediaPipeHands;
-  const detector = await handPoseDetection.createDetector(model, {
-    runtime: 'mediapipe',
-    modelType: 'full',
-    solutionPath: `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${mpHands.VERSION}`,
+  const vision = await FilesetResolver.forVisionTasks(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm',
+  );
+  const handLandmarker = await HandLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: '/fingertip-bubbles/hand_landmarker.task',
+    },
+    numHands: 2,
   });
 
   const videoWidth = 1280;
@@ -85,8 +87,8 @@ async function main() {
   clock.addEventListener('tick', update);
 
   const cursor = {
-    x: sizes.w / 2,
-    y: sizes.h / 2,
+    x: 0.5,
+    y: 0.5,
     active: false,
     inView: false,
   };
@@ -126,26 +128,26 @@ async function main() {
   }
 
   function updateCursorPosition() {
-    detector.estimateHands(vCanvas).then((hands) => {
-      const rightHand = hands.find(
-        (hand) => hand.handedness === 'Right' && hand.score > 0.8,
+    const result = handLandmarker.detect(vCanvas);
+    const rightHandIndex = result.handednesses.findIndex((category) =>
+      category.find((c) => c.categoryName === 'Right' && c.score > 0.8),
+    );
+    cursor.inView = rightHandIndex !== -1;
+    if (rightHandIndex === -1) {
+      cursor.active = false;
+    } else {
+      const rightHandLandmarks = result.landmarks[rightHandIndex];
+      const [, , , , thumb, , , , index] = rightHandLandmarks;
+      const ratio60 = 0.5;
+      const delta60 = 16;
+      const ratio = 1 - Math.pow(1 - ratio60, clock.delta / delta60);
+      cursor.x = lerp(cursor.x, index.x, ratio);
+      cursor.y = lerp(cursor.y, index.y, ratio);
+      const distance = Math.sqrt(
+        (thumb.x - index.x) ** 2 + (thumb.y - index.y) ** 2,
       );
-      cursor.inView = !!rightHand;
-      if (rightHand) {
-        const [, , , , thumb, , , , index] = rightHand.keypoints;
-        const ratio60 = 0.3;
-        const delta60 = 16;
-        const ratio = 1 - Math.pow(1 - ratio60, clock.delta / delta60);
-        cursor.x = lerp(cursor.x, index.x, ratio);
-        cursor.y = lerp(cursor.y, index.y, ratio);
-        const distance = Math.sqrt(
-          (thumb.x - index.x) ** 2 + (thumb.y - index.y) ** 2,
-        );
-        cursor.active = distance < (cursor.active ? 70 : 30);
-      } else {
-        cursor.active = false;
-      }
-    });
+      cursor.active = distance < (cursor.active ? 0.1 : 0.03);
+    }
   }
 
   function updateVideoCanvas() {
@@ -159,11 +161,12 @@ async function main() {
   pCanvas.style.zIndex = '1';
 
   function drawPointer() {
+    const { w, h } = sizes;
     const { x, y, active, inView } = cursor;
     if (!inView) return;
     pCtx.save();
     pCtx.beginPath();
-    pCtx.arc(x, y, Math.max(vars.width / 2, 4), 0, Math.PI * 2);
+    pCtx.arc(x * w, y * h, Math.max(vars.width / 2, 4), 0, Math.PI * 2);
     pCtx.fillStyle = active ? vars.color : 'black';
     pCtx.strokeStyle = active ? vars.color : 'white';
     pCtx.lineWidth = 1;
@@ -188,15 +191,16 @@ async function main() {
       }
       return;
     }
+    const { w, h } = sizes;
     mCtx.lineWidth = vars.width;
     mCtx.strokeStyle = vars.color;
     mCtx.lineCap = 'round';
     if (cursor.active && active === false) {
       active = true;
       mCtx.beginPath();
-      mCtx.moveTo(cursor.x, cursor.y);
+      mCtx.moveTo(cursor.x * w, cursor.y * h);
     } else {
-      mCtx.lineTo(cursor.x, cursor.y);
+      mCtx.lineTo(cursor.x * w, cursor.y * h);
     }
     mCtx.stroke();
   }
