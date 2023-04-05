@@ -39,6 +39,8 @@ async function main() {
   const videoHeight = 720;
   const videoAspectRatio = videoWidth / videoHeight;
   const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
   navigator.mediaDevices
     .getUserMedia({
       video: {
@@ -229,4 +231,12 @@ async function main() {
   clock.addEventListener('tick', update);
 }
 
-main();
+const button = document.querySelector('button');
+button?.addEventListener(
+  'click',
+  () => {
+    button.remove();
+    main();
+  },
+  { once: true },
+);
