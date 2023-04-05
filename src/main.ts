@@ -7,12 +7,16 @@ import { sizes } from './sizes';
 async function main() {
   const gui = new GUI();
   const vars = {
+    dominant: 'Right',
+    threshold: 30,
     color: '#ff0000',
     width: 2,
     showVideo: true,
     backgroundColor: '#ffffff',
     clear: clearMainCanvas,
   };
+  gui.add(vars, 'dominant', ['Right', 'Left']).name('Dominant hand');
+  gui.add(vars, 'threshold', 1, 100, 1).name('Threshold (px)');
   gui.addColor(vars, 'color');
   gui.add(vars, 'width', 1, 20, 1);
   gui
@@ -136,7 +140,7 @@ async function main() {
   function updateCursorPosition() {
     const result = handLandmarker.detect(vCanvas);
     const rightHandIndex = result.handednesses.findIndex((category) =>
-      category.find((c) => c.categoryName === 'Right'),
+      category.find((c) => c.categoryName === vars.dominant),
     );
     cursor.inView = rightHandIndex !== -1;
     if (rightHandIndex === -1) {
@@ -154,7 +158,8 @@ async function main() {
       const distance = Math.sqrt(
         (thumb.x - index.x) ** 2 + (thumb.y - index.y) ** 2,
       );
-      cursor.active = distance < (cursor.active ? 60 : 30);
+      cursor.active =
+        distance < (cursor.active ? vars.threshold * 2 : vars.threshold);
     }
   }
 
