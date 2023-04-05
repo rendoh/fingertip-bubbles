@@ -31,16 +31,6 @@ async function main() {
   });
   gui.add(vars, 'clear');
 
-  const vision = await FilesetResolver.forVisionTasks(
-    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm',
-  );
-  const handLandmarker = await HandLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath: '/fingertip-bubbles/hand_landmarker.task',
-    },
-    numHands: 2,
-  });
-
   const videoWidth = 1280;
   const videoHeight = 720;
   const videoAspectRatio = videoWidth / videoHeight;
@@ -84,8 +74,6 @@ async function main() {
     };
   }
 
-  clock.addEventListener('tick', update);
-
   const cursor = {
     x: 0.5,
     y: 0.5,
@@ -127,6 +115,15 @@ async function main() {
     return x + (y - x) * p;
   }
 
+  const vision = await FilesetResolver.forVisionTasks(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.1.0-alpha-7/wasm',
+  );
+  const handLandmarker = await HandLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: '/fingertip-bubbles/hand_landmarker.task',
+    },
+    numHands: 2,
+  });
   function updateCursorPosition() {
     const result = handLandmarker.detect(vCanvas);
     const rightHandIndex = result.handednesses.findIndex((category) =>
@@ -214,6 +211,8 @@ async function main() {
     updatePointerCanvas();
     updateMainCanvas();
   }
+
+  clock.addEventListener('tick', update);
 }
 
 main();
