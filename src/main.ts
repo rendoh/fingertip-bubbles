@@ -75,8 +75,8 @@ async function main() {
   }
 
   const cursor = {
-    x: 0.5,
-    y: 0.5,
+    x: sizes.w / 2,
+    y: sizes.h / 2,
     active: false,
     inView: false,
   };
@@ -115,6 +115,15 @@ async function main() {
     return x + (y - x) * p;
   }
 
+  function standardizeCursor({ x, y }: { x: number; y: number }): {
+    x: number;
+    y: number;
+  } {
+    return {
+      x: x * sizes.w,
+      y: y * sizes.h,
+    };
+  }
   const vision = await FilesetResolver.forVisionTasks(
     'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.1.0-alpha-7/wasm',
   );
@@ -134,16 +143,18 @@ async function main() {
       cursor.active = false;
     } else {
       const rightHandLandmarks = result.landmarks[rightHandIndex];
-      const [, , , , thumb, , , , index] = rightHandLandmarks;
+      const [, , , , _thumb, , , , _index] = rightHandLandmarks;
       const ratio60 = 0.5;
       const delta60 = 16;
+      const thumb = standardizeCursor(_thumb);
+      const index = standardizeCursor(_index);
       const ratio = 1 - Math.pow(1 - ratio60, clock.delta / delta60);
       cursor.x = lerp(cursor.x, index.x, ratio);
       cursor.y = lerp(cursor.y, index.y, ratio);
       const distance = Math.sqrt(
         (thumb.x - index.x) ** 2 + (thumb.y - index.y) ** 2,
       );
-      cursor.active = distance < (cursor.active ? 0.1 : 0.03);
+      cursor.active = distance < (cursor.active ? 60 : 30);
     }
   }
 
@@ -158,12 +169,11 @@ async function main() {
   pCanvas.style.zIndex = '1';
 
   function drawPointer() {
-    const { w, h } = sizes;
     const { x, y, active, inView } = cursor;
     if (!inView) return;
     pCtx.save();
     pCtx.beginPath();
-    pCtx.arc(x * w, y * h, Math.max(vars.width / 2, 4), 0, Math.PI * 2);
+    pCtx.arc(x, y, Math.max(vars.width / 2, 4), 0, Math.PI * 2);
     pCtx.fillStyle = active ? vars.color : 'black';
     pCtx.strokeStyle = active ? vars.color : 'white';
     pCtx.lineWidth = 1;
@@ -188,16 +198,15 @@ async function main() {
       }
       return;
     }
-    const { w, h } = sizes;
     mCtx.lineWidth = vars.width;
     mCtx.strokeStyle = vars.color;
     mCtx.lineCap = 'round';
     if (cursor.active && active === false) {
       active = true;
       mCtx.beginPath();
-      mCtx.moveTo(cursor.x * w, cursor.y * h);
+      mCtx.moveTo(cursor.x, cursor.y);
     } else {
-      mCtx.lineTo(cursor.x * w, cursor.y * h);
+      mCtx.lineTo(cursor.x, cursor.y);
     }
     mCtx.stroke();
   }
