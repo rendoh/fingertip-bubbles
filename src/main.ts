@@ -1,3 +1,4 @@
+import * as mpHands from '@mediapipe/hands';
 import * as handPoseDetection from '@tensorflow-models/hand-pose-detection';
 import GUI from 'lil-gui';
 
@@ -35,7 +36,7 @@ async function main() {
   const detector = await handPoseDetection.createDetector(model, {
     runtime: 'mediapipe',
     modelType: 'full',
-    solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/hands',
+    solutionPath: `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${mpHands.VERSION}`,
   });
 
   const videoWidth = 1280;
