@@ -7,10 +7,27 @@
     <title>Fingertip bubbles</title>
     <style>
       *:where(:not(iframe, canvas, img, svg, video):not(svg *)){ all: unset; display: revert; }
+      body {
+        height: 100svh;
+        display: grid;
+        place-items: center;
+        font-family: sans-serif;
+      }
+      button {
+        border-radius: 3px;
+        color: white;
+        background: #1e88e5;
+        padding: 10px 20px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #1565c0;
+      }
     </style>
-    <script type="module" crossorigin src="/fingertip-bubbles/assets/index-d8d3d717.js"></script>
+    <script type="module" crossorigin src="/fingertip-bubbles/assets/index-3888baf9.js"></script>
   </head>
   <body>
+    <button>Start</button>
     
   </body>
 </html>
